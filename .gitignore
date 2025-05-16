@@ -1,0 +1,8 @@
+# IntelliJ Idea
+.idea/*
+!.idea/runConfigurations
+*.iws
+*.ipr
+*.iml
+*.releaseBackup
+atlassian-ide-plugin.xml

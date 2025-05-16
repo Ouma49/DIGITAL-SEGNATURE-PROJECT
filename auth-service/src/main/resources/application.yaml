@@ -1,0 +1,16 @@
+server:
+  port: 8080
+  host: 0.0.0.0
+app:
+    greeting: "Hello"
+
+db:
+  user: "root"
+  password: "root"
+  url: "jdbc:postgresql://db:5432/auth_db"
+
+jwt:
+  secret: "your-super-secure-key-that-is-32+chars!"
+  expiration: 3600
+  issuer: "auth-service"
+  algorithm: "HS256"

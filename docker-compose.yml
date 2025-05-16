@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+
+  db:
+    build: ./database
+    networks:
+      - backend-net
+    volumes:
+      - ./database/data:/var/lib/postgresql/data
+    ports: 
+      - "5432:5432"
+
+  auth:
+    build: ./auth-service
+    depends_on:
+      - db
+    networks:
+      - backend-net
+    ports: 
+      - "8081:8080"
+
+  api-gateway:
+    image: nginx:1-alpine
+    volumes:
+      - ./api-gateway/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - auth
+    networks:
+      - backend-net
+      - frontend-net
+
+  frontend:
+    build: ./verify-safe-docs
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - frontend-net
+
+networks:
+  backend-net:
+  frontend-net:
