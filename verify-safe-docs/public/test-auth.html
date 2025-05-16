@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth API Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Auth API Test</h1>
+    
+    <div class="test-section">
+        <h2>Register</h2>
+        <button onclick="testRegister()">Test Register</button>
+        <pre id="register-result">Click the button to test registration</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Login</h2>
+        <button onclick="testLogin()">Test Login</button>
+        <pre id="login-result">Click the button to test login</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Check Token</h2>
+        <button onclick="testCheckToken()">Test Check Token</button>
+        <pre id="check-token-result">Click the button to test token validation</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Get Current User</h2>
+        <button onclick="testGetCurrentUser()">Test Get Current User</button>
+        <pre id="current-user-result">Click the button to test getting current user</pre>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost/auth';
+        let currentToken = '';
+
+        async function testRegister() {
+            try {
+                const response = await axios.post(`${API_URL}/register`, {
+                    name: 'Test User',
+                    email: 'test@example.com',
+                    password: 'password123'
+                });
+                document.getElementById('register-result').textContent = 
+                    JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                document.getElementById('register-result').textContent = 
+                    'Error: ' + (error.response?.data?.message || error.message);
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const response = await axios.post(`${API_URL}/login`, {
+                    email: 'test@example.com',
+                    password: 'password123'
+                });
+                currentToken = response.data.token;
+                document.getElementById('login-result').textContent = 
+                    JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                document.getElementById('login-result').textContent = 
+                    'Error: ' + (error.response?.data?.message || error.message);
+            }
+        }
+
+        async function testCheckToken() {
+            if (!currentToken) {
+                document.getElementById('check-token-result').textContent = 
+                    'Error: Please login first to get a token';
+                return;
+            }
+
+            try {
+                const response = await axios.get(`${API_URL}/check-token`, {
+                    headers: { Authorization: `Bearer ${currentToken}` }
+                });
+                document.getElementById('check-token-result').textContent = 
+                    JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                document.getElementById('check-token-result').textContent = 
+                    'Error: ' + (error.response?.data?.message || error.message);
+            }
+        }
+
+        async function testGetCurrentUser() {
+            if (!currentToken) {
+                document.getElementById('current-user-result').textContent = 
+                    'Error: Please login first to get a token';
+                return;
+            }
+
+            try {
+                const response = await axios.get(`${API_URL}/me`, {
+                    headers: { Authorization: `Bearer ${currentToken}` }
+                });
+                document.getElementById('current-user-result').textContent = 
+                    JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                document.getElementById('current-user-result').textContent = 
+                    'Error: ' + (error.response?.data?.message || error.message);
+            }
+        }
+    </script>
+</body>
+</html> 
