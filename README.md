@@ -9,7 +9,7 @@ This project is a **Dockerized microservices platform** for managing digital sig
 Two Docker networks are used:
 
 * `backend-net`: internal communication between services
-* `frontend-net`: external access via API Gateway
+* `frontend-net`: external network
 
 ---
 
@@ -21,6 +21,7 @@ PI-Digital-Signature-Platform/
 ├── auth-service/         # Authentication microservice
 └── database/             # Database
     └── data/             # Persistent data
+├── front-end/         # front-end
 ```
 
 ---
@@ -31,10 +32,10 @@ PI-Digital-Signature-Platform/
 
 ```bash
 # Clone the repository
-git clone https://github.com/BA-XX/PI-Digital-Signature-Platform.git
+git clone https://github.com/Ouma49/DIGITAL-SEGNATURE-PROJECT.git
 
 # Navigate into the project directory
-cd PI-Digital-Signature-Platform
+cd IGITAL-SEGNATURE-PROJECT
 ```
 
 ### 2. Build the Docker Services
@@ -59,7 +60,7 @@ docker-compose down
 
 ## Accessing Endpoints
 
-The **API Gateway** is exposed on **port 80** of your host machine by default.
+The Project is exposed on **port 80** of your host machine by default.
 You can access it using:
 
 *  `http://localhost` *(when working locally)*

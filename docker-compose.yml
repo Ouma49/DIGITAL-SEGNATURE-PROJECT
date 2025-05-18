@@ -33,7 +33,7 @@ services:
       - frontend-net
 
   frontend:
-    build: ./verify-safe-docs
+    build: ./front-end
     ports:
       - "3000:80"
     depends_on:
