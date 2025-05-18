@@ -35,7 +35,7 @@ PI-Digital-Signature-Platform/
 git clone https://github.com/Ouma49/DIGITAL-SEGNATURE-PROJECT.git
 
 # Navigate into the project directory
-cd IGITAL-SEGNATURE-PROJECT
+cd DIGITAL-SEGNATURE-PROJECT
 ```
 
 ### 2. Build the Docker Services
