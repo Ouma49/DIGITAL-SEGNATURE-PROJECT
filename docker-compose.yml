@@ -8,8 +8,6 @@ services:
       - backend-net
     volumes:
       - ./database/data:/var/lib/postgresql/data
-    ports: 
-      - "5432:5432"
 
   auth:
     build: ./auth-service
@@ -17,8 +15,6 @@ services:
       - db
     networks:
       - backend-net
-    ports: 
-      - "8081:8080"
 
   api-gateway:
     image: nginx:1-alpine
@@ -34,8 +30,6 @@ services:
 
   frontend:
     build: ./front-end
-    ports:
-      - "3000:80"
     depends_on:
       - api-gateway
     networks:
