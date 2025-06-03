@@ -1,7 +1,11 @@
 ## Add Data
+
 POST /documents
+
 Adds a new document to the blockchain.
+
 Expects the main application to send the data structure with user_id included.
+
 Example Request:
 
 curl -X POST http://localhost:5000/documents \
@@ -28,4 +32,5 @@ curl http://localhost:5000/documents/1
 ## Docker Build
 
 docker build -t blockchain-microservice .
+
 docker run -d -p 5000:5000 blockchain-microservice
