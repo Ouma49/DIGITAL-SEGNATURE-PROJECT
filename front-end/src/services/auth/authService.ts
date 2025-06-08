@@ -11,7 +11,7 @@ import {
 } from './types';
 
 // Update this to match your backend service URL
-const API_BASE_URL = 'http://localhost:8080/auth';
+const API_BASE_URL = '/auth';  // Use relative URL for API gateway routing
 
 // Create axios instance with default config
 const api = axios.create({
@@ -29,13 +29,18 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log('Request:', config.method, config.url, config.data);
   return config;
 });
 
 // Add response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('Response:', response.status, response.data);
+    return response;
+  },
   (error) => {
+    console.error('API Error:', error.message, error.response?.data);
     if (error.code === 'ECONNABORTED') {
       throw new Error('Connection timeout. Please check if the server is running.');
     }

@@ -34,9 +34,7 @@ public class Main {
     }
 
     static void routing(HttpRouting.Builder routing) {
-
         routing
                 .register("/auth", new AuthService());
-
     }
 }

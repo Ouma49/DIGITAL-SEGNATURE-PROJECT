@@ -29,14 +29,11 @@ public class AuthService implements HttpService {
         rules
                 .post("/register", new RegisterHandler(userDao))
                 .post("/login", new LoginHandler(userDao))
-
                 .get("/me", new AuthMiddleware(), new UserInfoHandler(userDao))
                 .get("/login-history", new AuthMiddleware(), new LoginHistoryHandler(loginHistoryDao))
                 .get("/check-token", new AuthMiddleware(), new CheckTokenHandler())
-
                 .put("/update", new AuthMiddleware(), new UpdateUserInfoHandler(userDao))
                 .put("/update-password", new AuthMiddleware(), new UpdatePasswordHandler(userDao));
-
     }
 
 }

@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { AuthState, LoginCredentials, RegisterCredentials, User } from '@/types/auth';
 import { toast } from 'sonner';
+import { authService } from '@/services/auth/authService';
 
 interface AuthContextProps {
   authState: AuthState;
@@ -9,14 +10,6 @@ interface AuthContextProps {
   register: (credentials: RegisterCredentials) => Promise<boolean>;
   logout: () => void;
 }
-
-// Mock user data for demo purposes
-const mockUser: User = {
-  id: '1',
-  email: 'demo@example.com',
-  name: 'Demo User',
-  createdAt: new Date().toISOString(),
-};
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
@@ -31,84 +24,118 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-          const user = JSON.parse(savedUser) as User;
-          setAuthState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+        // Check if we have a token
+        const token = localStorage.getItem('token');
+        if (token) {
+          // Verify token with backend
+          try {
+            const tokenCheck = await authService.checkToken();
+            if (tokenCheck.data?.valid) {
+              // Get user info
+              const userResponse = await authService.getCurrentUser();
+              if (userResponse.data) {
+                const user: User = {
+                  id: userResponse.data.id || '',
+                  email: userResponse.data.email,
+                  name: userResponse.data.fullName,
+                  createdAt: new Date().toISOString(),
+                };
+                
+                setAuthState({
+                  user,
+                  isAuthenticated: true,
+                  isLoading: false,
+                });
+              } else {
+                // Token valid but couldn't get user info
+                authService.logout();
+                setAuthState({ user: null, isAuthenticated: false, isLoading: false });
+              }
+            } else {
+              // Invalid token
+              authService.logout();
+              setAuthState({ user: null, isAuthenticated: false, isLoading: false });
+            }
+          } catch (error) {
+            console.error('Token validation error:', error);
+            authService.logout();
+            setAuthState({ user: null, isAuthenticated: false, isLoading: false });
+          }
         } else {
-          setAuthState((prev) => ({ ...prev, isLoading: false }));
+          setAuthState({ user: null, isAuthenticated: false, isLoading: false });
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        setAuthState((prev) => ({ ...prev, isLoading: false }));
+        setAuthState({ user: null, isAuthenticated: false, isLoading: false });
       }
     };
 
     checkAuth();
   }, []);
 
-  // In a real app, this would make an API call
+  // Use the real API service
   const login = async (credentials: LoginCredentials): Promise<boolean> => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await authService.login({
+        email: credentials.email,
+        password: credentials.password
+      });
       
-      // Mock validation (in real app, this would come from backend)
-      if (credentials.email === 'demo@example.com' && credentials.password === 'password') {
-        localStorage.setItem('user', JSON.stringify(mockUser));
+      if (response.status === 'success' && response.token && response.userInfo) {
+        const user: User = {
+          id: response.userInfo.id || '',
+          email: response.userInfo.email,
+          name: response.userInfo.fullName,
+          createdAt: new Date().toISOString(),
+        };
+        
         setAuthState({
-          user: mockUser,
+          user,
           isAuthenticated: true,
           isLoading: false,
         });
+        
         toast.success('Welcome back!');
         return true;
       }
       
-      toast.error('Invalid credentials');
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
       toast.error('Login failed');
+      return false;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
       return false;
     }
   };
 
-  // In a real app, this would make an API call
+  // Use the real API service
   const register = async (credentials: RegisterCredentials): Promise<boolean> => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Mock registration (in real app, this would be handled by backend)
-      const newUser: User = {
-        id: Date.now().toString(),
-        email: credentials.email,
+      const response = await authService.register({
         name: credentials.name,
-        createdAt: new Date().toISOString(),
-      };
-      
-      localStorage.setItem('user', JSON.stringify(newUser));
-      setAuthState({
-        user: newUser,
-        isAuthenticated: true,
-        isLoading: false,
+        email: credentials.email,
+        password: credentials.password
       });
-      toast.success('Registration successful!');
-      return true;
-    } catch (error) {
-      console.error('Registration error:', error);
+      
+      if (response.status === 'success') {
+        // After registration, log the user in
+        return await login({
+          email: credentials.email,
+          password: credentials.password
+        });
+      }
+      
       toast.error('Registration failed');
+      return false;
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error.message || 'Registration failed');
       return false;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
+    authService.logout();
     setAuthState({
       user: null,
       isAuthenticated: false,

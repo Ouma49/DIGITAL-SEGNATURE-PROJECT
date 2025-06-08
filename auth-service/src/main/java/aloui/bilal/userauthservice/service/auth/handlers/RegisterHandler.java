@@ -19,51 +19,60 @@ public class RegisterHandler implements Handler {
 
     @Override
     public void handle(ServerRequest req, ServerResponse res) throws Exception {
+        try {
+            // Read the content only once as JsonObject
+            JsonObject reqJson = req.content().as(JsonObject.class);
+            
+            String name = reqJson.getString("name", "").trim();
+            String email = reqJson.getString("email", "").trim();
+            String password = reqJson.getString("password", "").trim();
+            
+            // Basic input validation
+            if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
+                JsonObject error = Json.createObjectBuilder()
+                        .add("status", "error")
+                        .add("message", "All fields (name, email, password) are required.")
+                        .build();
+                res.status(400).send(error);
+                return;
+            }
 
-        JsonObject reqJson = req.content().as(JsonObject.class);
+            if (!email.matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
+                JsonObject error = Json.createObjectBuilder()
+                        .add("status", "error")
+                        .add("message", "Invalid email format.")
+                        .build();
+                res.status(400).send(error);
+                return;
+            }
 
-        String name = reqJson.getString("name", "").trim();
-        String email = reqJson.getString("email", "").trim();
-        String password = reqJson.getString("password", "").trim();
+            // All good: return success for now
+            JsonObject success = Json.createObjectBuilder()
+                    .add("status", "success")
+                    .add("message", "Registration success.")
+                    .build();
 
-        // Basic input validation
-        if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
+            User user = new User.Builder()
+                    .fullName(name)
+                    .email(email)
+                    .role(2)
+                    .build();
+
+            if (userDao.register(user, password)) {
+                res.status(200).send(success);
+            } else {
+                res.status(500).send(Json.createObjectBuilder()
+                        .add("status", "error")
+                        .add("message", "Internal server error.")
+                        .build());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
             JsonObject error = Json.createObjectBuilder()
                     .add("status", "error")
-                    .add("message", "All fields (name, email, password) are required.")
+                    .add("message", "Error parsing request: " + e.getMessage())
                     .build();
             res.status(400).send(error);
-            return;
-        }
-
-        if (!email.matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
-            JsonObject error = Json.createObjectBuilder()
-                    .add("status", "error")
-                    .add("message", "Invalid email format.")
-                    .build();
-            res.status(400).send(error);
-            return;
-        }
-
-        // All good: return success for now
-        JsonObject success = Json.createObjectBuilder()
-                .add("status", "success")
-                .add("message", "Registration success.")
-                .build();
-
-        User user = new User.Builder()
-                .fullName(name)
-                .email(email)
-                .role(2)
-                .build();
-
-        if (userDao.register(user, password)) {
-            res.status(200).send(success);
-        } else {
-            res.status(500).send(Json.createObjectBuilder()
-                    .add("status", "error")
-                    .add("message", "Internal server error.")
-                    .build());
         }
     }
 }

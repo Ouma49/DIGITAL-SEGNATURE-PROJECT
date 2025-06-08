@@ -4,20 +4,41 @@ services:
 
   db:
     build: ./database
+    container_name: db
     networks:
       - backend-net
     volumes:
       - ./database/data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    ports:
+      - "5432:5432"  # Expose for debugging
 
   auth:
     build: ./auth-service
+    container_name: auth
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - backend-net
+    ports:
+      - "8082:8080"  # Changed from 8080:8080 to avoid port conflict
+    restart: on-failure
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=auth_db
+      - DB_USER=root
+      - DB_PASSWORD=root
 
   api-gateway:
     image: nginx:1-alpine
+    container_name: api-gateway
     volumes:
       - ./api-gateway/default.conf:/etc/nginx/conf.d/default.conf
     ports:
@@ -27,9 +48,13 @@ services:
     networks:
       - backend-net
       - frontend-net
+    restart: on-failure
 
   frontend:
     build: ./front-end
+    container_name: frontend
+    ports:
+      - "8081:80"
     depends_on:
       - api-gateway
     networks:
@@ -37,4 +62,6 @@ services:
 
 networks:
   backend-net:
+    name: backend-net
   frontend-net:
+    name: frontend-net
