@@ -86,6 +86,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: response.userInfo.id || '',
           email: response.userInfo.email,
           name: response.userInfo.fullName,
+          organization: response.userInfo.organization,
+          role: response.userInfo.role,
           createdAt: new Date().toISOString(),
         };
         
@@ -114,7 +116,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await authService.register({
         name: credentials.name,
         email: credentials.email,
-        password: credentials.password
+        password: credentials.password,
+        organization: credentials.organization
       });
       
       if (response.status === 'success') {

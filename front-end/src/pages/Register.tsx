@@ -12,6 +12,7 @@ const Register: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [organization, setOrganization] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const Register: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const success = await register({ name, email, password });
+      const success = await register({ name, email, password, organization });
       if (success) {
         navigate('/dashboard');
       }
@@ -71,6 +72,16 @@ const Register: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="organization">Organization (Optional)</Label>
+                <Input
+                  id="organization"
+                  type="text"
+                  placeholder="Your Company"
+                  value={organization}
+                  onChange={(e) => setOrganization(e.target.value)}
                 />
               </div>
               <div className="space-y-2">

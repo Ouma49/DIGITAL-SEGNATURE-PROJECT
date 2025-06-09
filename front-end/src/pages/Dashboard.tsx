@@ -5,14 +5,21 @@ import { useDocuments } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentCard from '@/components/DocumentCard';
 import { Button } from '@/components/ui/button';
-import { Upload, FileText } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Upload, FileText, Key, Shield, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Dashboard: React.FC = () => {
-  const { documents, isLoading } = useDocuments();
+  const { documents, isLoading, userHasKeys, currentUserId, generateUserKeys } = useDocuments();
   const { authState } = useAuth();
   const navigate = useNavigate();
+
+  const handleGenerateKeys = async () => {
+    await generateUserKeys();
+  };
 
   return (
     <AppLayout>
@@ -31,6 +38,70 @@ const Dashboard: React.FC = () => {
             <Upload className="mr-2 h-4 w-4" /> Upload Document
           </Button>
         </div>
+
+        {/* Crypto Key Management Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Cryptographic Keys
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">User ID: {currentUserId}</p>
+                <p className="text-sm text-muted-foreground">
+                  {userHasKeys
+                    ? 'Cryptographic keys are available for secure document signing'
+                    : 'No cryptographic keys found - generate keys to enable secure signing'
+                  }
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                {userHasKeys ? (
+                  <Badge className="bg-green-100 text-green-800">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Keys Available
+                  </Badge>
+                ) : (
+                  <Badge className="bg-red-100 text-red-800">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    No Keys
+                  </Badge>
+                )}
+                {!userHasKeys && (
+                  <Button onClick={handleGenerateKeys} disabled={isLoading}>
+                    <Key className="h-4 w-4 mr-2" />
+                    {isLoading ? 'Generating...' : 'Generate Keys'}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {!userHasKeys && (
+              <Alert className="mt-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Cryptographic Keys Required</AlertTitle>
+                <AlertDescription>
+                  Generate RSA cryptographic keys to enable secure document signing with digital signatures.
+                  This creates a unique key pair that ensures non-repudiation and document integrity.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {userHasKeys && (
+              <Alert className="mt-4 bg-green-50 border-green-200">
+                <Shield className="h-4 w-4 text-green-600" />
+                <AlertTitle className="text-green-700">Secure Signing Enabled</AlertTitle>
+                <AlertDescription className="text-green-700">
+                  Your documents will be signed using RSA-2048 cryptographic signatures with SHA-256 hashing
+                  for maximum security and legal compliance.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Recent Documents</h2>

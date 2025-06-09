@@ -55,6 +55,7 @@ public class LoginHandler implements Handler {
         User user = userOpt.get();
 
         JsonObject userInfo = Json.createObjectBuilder()
+                .add("id", user.getId())
                 .add("email", email)
                 .add("fullName", user.getFullName())
                 .add("organization", (user.getOrganizationName() == null) ? "" : user.getOrganizationName())

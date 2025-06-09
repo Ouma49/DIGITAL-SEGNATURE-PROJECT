@@ -3,6 +3,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  organization?: string;
+  role?: number;
   createdAt: string;
 }
 
@@ -21,4 +23,5 @@ export interface RegisterCredentials {
   email: string;
   password: string;
   name: string;
+  organization?: string;
 }

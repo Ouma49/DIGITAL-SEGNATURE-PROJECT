@@ -6,6 +6,7 @@ import io.helidon.config.Config;
 import io.helidon.logging.common.LogConfig;
 import io.helidon.webserver.WebServer;
 import io.helidon.webserver.http.HttpRouting;
+import io.helidon.webserver.cors.CorsSupport;
 
 public class Main {
 
@@ -34,7 +35,15 @@ public class Main {
     }
 
     static void routing(HttpRouting.Builder routing) {
+        // Add CORS support
+        CorsSupport cors = CorsSupport.builder()
+                .allowOrigins("*")
+                .allowMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowHeaders("*")
+                .build();
+
         routing
+                .register(cors)
                 .register("/auth", new AuthService());
     }
 }

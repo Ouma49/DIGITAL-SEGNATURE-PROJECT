@@ -1,7 +1,8 @@
 export interface User {
+  id?: string;
   email: string;
   fullName: string;
-  organization: string;
+  organization?: string;
   role: number;
 }
 
@@ -15,6 +16,7 @@ export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+  organization?: string;
 }
 
 export interface LoginRequest {

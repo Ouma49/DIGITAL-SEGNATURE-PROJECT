@@ -4,9 +4,11 @@ export interface Document {
   title: string;
   fileName: string;
   fileType: string;
+  fileData?: File; // Store the original file for crypto operations
   uploadedAt: string;
   status: DocumentStatus;
   hash?: string;
+  cryptoHash?: string; // Hash from crypto backend
   blockchainTxId?: string;
   signatures?: Signature[];
   sharedWith?: string[];
@@ -16,6 +18,7 @@ export interface Document {
   revoked?: boolean;
   revokedReason?: string;
   metadata?: DocumentMetadata;
+  signedPackage?: any; // The signed package from crypto backend
   // New fields for AI-powered features
   aiClassification?: AIDocumentClassification;
   securityAnalysis?: SecurityAnalysis;
@@ -58,6 +61,10 @@ export interface Signature {
   deviceInfo?: string;
   verified: boolean;
   verificationMethod?: VerificationMethod;
+  // Crypto-related fields
+  cryptoSignature?: string; // The actual cryptographic signature
+  algorithm?: string; // Signing algorithm used
+  keyType?: string; // Type of cryptographic key
   // New fields for advanced biometric authentication
   biometricData?: BiometricVerification;
 }

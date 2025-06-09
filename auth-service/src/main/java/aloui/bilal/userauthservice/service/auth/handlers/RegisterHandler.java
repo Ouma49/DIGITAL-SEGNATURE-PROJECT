@@ -26,6 +26,7 @@ public class RegisterHandler implements Handler {
             String name = reqJson.getString("name", "").trim();
             String email = reqJson.getString("email", "").trim();
             String password = reqJson.getString("password", "").trim();
+            String organization = reqJson.getString("organization", "").trim();
             
             // Basic input validation
             if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
@@ -56,6 +57,7 @@ public class RegisterHandler implements Handler {
                     .fullName(name)
                     .email(email)
                     .role(2)
+                    .organizationName(organization.isEmpty() ? null : organization)
                     .build();
 
             if (userDao.register(user, password)) {

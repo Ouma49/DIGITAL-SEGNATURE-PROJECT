@@ -43,6 +43,11 @@
         </dependency>
 
         <dependency>
+            <groupId>io.helidon.webserver</groupId>
+            <artifactId>helidon-webserver-cors</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>io.helidon.logging</groupId>
             <artifactId>helidon-logging-jul</artifactId>
             <scope>runtime</scope>

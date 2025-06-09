@@ -1,27 +1,34 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { 
-  Document, 
-  DocumentStatus, 
+import {
+  Document,
+  DocumentStatus,
   SecurityLevel,
   SignatureType,
   VerificationMethod
 } from '@/types/document';
 import { toast } from 'sonner';
+import cryptoService from '@/services/cryptoService';
+import documentService from '@/services/documentService';
+import blockchainService from '@/services/blockchainService';
 
 interface DocumentContextProps {
   documents: Document[];
   isLoading: boolean;
+  currentUserId: string;
+  userHasKeys: boolean;
   uploadDocument: (file: File, title: string, securityLevel?: SecurityLevel) => Promise<Document | null>;
   getDocumentById: (id: string) => Document | undefined;
   signDocument: (
-    documentId: string, 
-    signatureDataUrl: string, 
+    documentId: string,
+    signatureDataUrl: string,
     signatureMetadata?: any
   ) => Promise<boolean>;
   shareDocument: (documentId: string, email: string) => Promise<boolean>;
   verifyDocument: (documentId: string) => Promise<boolean>;
   revokeDocument: (documentId: string, reason: string) => Promise<boolean>;
+  generateUserKeys: () => Promise<boolean>;
+  setCurrentUserId: (userId: string) => void;
 }
 
 // Mock blockchain hash generation - more complex with different algorithms
@@ -74,8 +81,10 @@ const DocumentContext = createContext<DocumentContextProps | undefined>(undefine
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [currentUserId, setCurrentUserId] = useState<string>('demo-user');
+  const [userHasKeys, setUserHasKeys] = useState<boolean>(false);
 
-  // Load documents from local storage on mount
+  // Load documents from local storage on mount and check for user keys
   useEffect(() => {
     const loadDocuments = () => {
       try {
@@ -90,8 +99,24 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     };
 
+    const checkUserKeys = () => {
+      try {
+        const savedKeys = localStorage.getItem(`user-keys-${currentUserId}`);
+        if (savedKeys) {
+          const keyInfo = JSON.parse(savedKeys);
+          setUserHasKeys(keyInfo.hasKeys || false);
+        } else {
+          setUserHasKeys(false);
+        }
+      } catch (error) {
+        console.error('Error checking user keys:', error);
+        setUserHasKeys(false);
+      }
+    };
+
     loadDocuments();
-  }, []);
+    checkUserKeys();
+  }, [currentUserId]);
 
   // Save documents to local storage whenever they change
   useEffect(() => {
@@ -101,63 +126,64 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [documents]);
 
   const uploadDocument = async (
-    file: File, 
-    title: string, 
+    file: File,
+    title: string,
     securityLevel: SecurityLevel = SecurityLevel.MEDIUM
   ): Promise<Document | null> => {
     try {
       setIsLoading(true);
-      
-      // Simulate more complex blockchain processing with multiple steps
-      toast.info("Preparing document for blockchain...");
-      await new Promise(resolve => setTimeout(resolve, 700));
-      
-      toast.info("Generating document hash...");
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const hash = generateHash();
-      
-      toast.info("Registering on blockchain network...");
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const txId = generateTxId();
-      
-      const newDocument: Document = {
-        id: Date.now().toString(),
+
+      toast.info("Uploading document...");
+
+      // Upload document using document service
+      const uploadResponse = await documentService.uploadDocument({
+        file,
         title: title || file.name,
-        fileName: file.name,
-        fileType: file.type,
-        uploadedAt: new Date().toISOString(),
+        user_id: currentUserId,
+        security_level: securityLevel
+      });
+
+      toast.info("Document uploaded and hashed successfully!");
+
+      // Create document object for frontend state
+      const newDocument: Document = {
+        id: uploadResponse.document_id.toString(),
+        title: uploadResponse.title,
+        fileName: uploadResponse.filename,
+        fileType: uploadResponse.file_type,
+        fileData: file, // Store the file for crypto operations
+        uploadedAt: uploadResponse.upload_timestamp,
         status: DocumentStatus.UPLOADED,
-        hash,
-        blockchainTxId: txId,
+        hash: uploadResponse.document_hash,
+        cryptoHash: uploadResponse.content_hash,
+        blockchainTxId: uploadResponse.blockchain_tx_id?.toString(),
         signatures: [],
         sharedWith: [],
         securityLevel,
         metadata: {
           createdBy: "Demo User",
-          createdAt: new Date().toISOString(),
-          pageCount: Math.floor(Math.random() * 10) + 1,
-          size: file.size,
+          createdAt: uploadResponse.upload_timestamp,
+          pageCount: 1, // Will be determined by document analysis
+          size: uploadResponse.file_size,
           version: 1,
-          contentHash: hash.split(':')[1].substring(0, 32),
+          contentHash: uploadResponse.content_hash,
           signaturesRequired: securityLevel === SecurityLevel.CRITICAL ? 2 : 1
         },
         verificationHistory: [
           {
             id: Date.now().toString(),
-            timestamp: new Date().toISOString(),
-            verifierId: "system",
-            verifierName: "System",
+            timestamp: uploadResponse.upload_timestamp,
+            verifierId: currentUserId,
+            verifierName: "Demo User",
             verified: true,
             verificationMethod: VerificationMethod.HASH_COMPARISON,
-            details: "Initial upload verification"
+            details: "Document uploaded and hashed"
           }
         ]
       };
-      
+
       setDocuments(prev => [...prev, newDocument]);
-      toast.success('Document uploaded and registered on blockchain');
+      toast.success('Document uploaded and registered on blockchain!');
       return newDocument;
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -172,42 +198,99 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return documents.find(doc => doc.id === id);
   };
 
+  const generateUserKeys = async (): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      toast.info('Generating cryptographic keys...');
+
+      await cryptoService.generateUserKeys(currentUserId);
+
+      const keyInfo = {
+        userId: currentUserId,
+        hasKeys: true,
+        keyGeneratedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem(`user-keys-${currentUserId}`, JSON.stringify(keyInfo));
+      setUserHasKeys(true);
+
+      toast.success('Cryptographic keys generated successfully!');
+      return true;
+    } catch (error) {
+      console.error('Error generating keys:', error);
+      toast.error('Failed to generate cryptographic keys');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const signDocument = async (
-    documentId: string, 
+    documentId: string,
     signatureDataUrl: string,
     signatureMetadata = {}
   ): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
+
       // Get document
       const document = documents.find(doc => doc.id === documentId);
       if (!document) {
         throw new Error("Document not found");
       }
-      
+
+      // Check if user has keys
+      if (!userHasKeys) {
+        toast.error("Please generate cryptographic keys first");
+        return false;
+      }
+
+      // Check if we have the original file data
+      if (!document.fileData) {
+        toast.error("Original document file not found. Please re-upload the document.");
+        return false;
+      }
+
       // Check if document can be signed
       if (document.status === DocumentStatus.REVOKED) {
         toast.error("This document has been revoked and cannot be signed");
         return false;
       }
-      
+
       if (document.status === DocumentStatus.EXPIRED) {
         toast.error("This document has expired and cannot be signed");
         return false;
       }
       
-      // More complex signing process with multiple steps
-      toast.info("Preparing signature for blockchain registration...");
-      await new Promise(resolve => setTimeout(resolve, 700));
-      
-      toast.info("Computing cryptographic proof...");
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      toast.info("Sending transaction to blockchain...");
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const verificationResult = await verifyOnBlockchain(document.hash || "");
+      // Use crypto service to sign the document
+      toast.info("Preparing signature for cryptographic signing...");
+
+      // Extract base64 signature from data URL
+      const signatureBase64 = cryptoService.extractBase64FromDataURL(signatureDataUrl);
+
+      toast.info("Computing cryptographic signature...");
+
+      // Call crypto service to sign the document
+      const signedPackage = await cryptoService.signDocument({
+        document: document.fileData,
+        signature_base64: signatureBase64,
+        user_id: currentUserId,
+      });
+
+      toast.info("Recording signature in database and blockchain...");
+
+      // Record signature in document service
+      await documentService.signDocument(parseInt(document.id), {
+        user_id: currentUserId,
+        signature_type: 'ELECTRONIC',
+        signature_data: signatureDataUrl,
+        crypto_signature: signedPackage.signature,
+        algorithm: signedPackage.signing_info.algorithm,
+        key_type: signedPackage.signing_info.key_type,
+        metadata: signatureMetadata
+      });
+
+      toast.info("Signature completed successfully!");
       
       // Determine new document status based on required signatures
       let newStatus = DocumentStatus.SIGNED;
@@ -227,34 +310,39 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             ...(doc.signatures || []),
             {
               id: Date.now().toString(),
-              userId: '1', // In real app, this would be the current user's ID
-              userName: 'Demo User', // In real app, this would be the current user's name
-              timestamp: new Date().toISOString(),
+              userId: currentUserId,
+              userName: 'Demo User', // In real app, this would be from auth context
+              timestamp: signedPackage.timestamp,
               signatureDataUrl,
               signatureType: SignatureType.ELECTRONIC,
-              verified: verificationResult.verified,
+              verified: true,
+              cryptoSignature: signedPackage.signature,
+              algorithm: signedPackage.signing_info.algorithm,
+              keyType: signedPackage.signing_info.key_type,
               ...signatureMetadata
             },
           ];
-          
+
           const updatedVerificationHistory = [
             ...(doc.verificationHistory || []),
             {
               id: Date.now().toString(),
-              timestamp: new Date().toISOString(),
-              verifierId: '1',
+              timestamp: signedPackage.timestamp,
+              verifierId: currentUserId,
               verifierName: 'Demo User',
-              verified: verificationResult.verified,
+              verified: true,
               verificationMethod: VerificationMethod.BLOCKCHAIN_VERIFICATION,
-              details: `Signature verification: ${verificationResult.verified ? 'Success' : 'Failed'}`
+              details: `Cryptographic signature applied using ${signedPackage.signing_info.algorithm}`
             }
           ];
-          
+
           return {
             ...doc,
             signatures: updatedSignatures,
             verificationHistory: updatedVerificationHistory,
             status: newStatus,
+            cryptoHash: signedPackage.document_hash,
+            signedPackage: signedPackage,
             blockchainTxId: generateTxId(),
           };
         }
@@ -275,26 +363,30 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const shareDocument = async (documentId: string, email: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
+
       // Get document
       const document = documents.find(doc => doc.id === documentId);
       if (!document) {
         throw new Error("Document not found");
       }
-      
+
       // Check if document can be shared
       if (document.status === DocumentStatus.REVOKED) {
         toast.error("This document has been revoked and cannot be shared");
         return false;
       }
-      
-      // More complex sharing process
-      toast.info("Preparing secure sharing link...");
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      toast.info("Encrypting document access...");
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
+
+      toast.info("Sharing document...");
+
+      // Share document using document service
+      const shareResponse = await documentService.shareDocument(parseInt(documentId), {
+        shared_by: currentUserId,
+        shared_with_email: email,
+        permission_level: 'VIEW'
+      });
+
+      toast.info("Document shared successfully!");
+
       // Check if email is already in sharedWith list
       if (document.sharedWith?.includes(email)) {
         toast.info(`Document already shared with ${email}`);
@@ -345,27 +437,40 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const verifyDocument = async (documentId: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
+
       // Get document
       const document = documents.find(doc => doc.id === documentId);
       if (!document) {
         throw new Error("Document not found");
       }
-      
-      // More complex verification process
-      toast.info("Connecting to blockchain network...");
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      toast.info("Retrieving transaction details...");
-      await new Promise(resolve => setTimeout(resolve, 700));
-      
-      toast.info("Verifying cryptographic proofs...");
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const verificationResult = await verifyOnBlockchain(document.hash || "");
-      
-      if (!verificationResult.verified) {
-        toast.error("Document verification failed! Hash mismatch detected.");
+
+      // Check if document has been signed and has the necessary data
+      if (!document.fileData || !document.signedPackage || !document.signatures || document.signatures.length === 0) {
+        toast.error("Document must be signed before verification");
+        return false;
+      }
+
+      toast.info("Verifying cryptographic signature...");
+
+      // Create signed package file
+      const signedPackageFile = cryptoService.createSignedPackageFile(
+        document.signedPackage,
+        `signed_${document.fileName}.json`
+      );
+
+      // Get the signature base64 from the first signature
+      const firstSignature = document.signatures[0];
+      const signatureBase64 = cryptoService.extractBase64FromDataURL(firstSignature.signatureDataUrl || '');
+
+      // Call crypto service to verify the document
+      const verificationResult = await cryptoService.verifyDocument({
+        document: document.fileData,
+        signed_package: signedPackageFile,
+        signature_base64: signatureBase64,
+      });
+
+      if (!verificationResult.valid) {
+        toast.error(`Document verification failed: ${verificationResult.message}`);
         return false;
       }
       
@@ -376,14 +481,14 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             {
               id: Date.now().toString(),
               timestamp: new Date().toISOString(),
-              verifierId: '1',
+              verifierId: currentUserId,
               verifierName: 'Demo User',
-              verified: verificationResult.verified,
+              verified: verificationResult.valid,
               verificationMethod: VerificationMethod.BLOCKCHAIN_VERIFICATION,
-              details: `Blockchain verification: Block ${verificationResult.blockNumber}, ${verificationResult.confirmations} confirmations`
+              details: `Cryptographic verification: ${verificationResult.message}`
             }
           ];
-          
+
           return {
             ...doc,
             verificationHistory: updatedVerificationHistory,
@@ -463,12 +568,16 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{
         documents,
         isLoading,
+        currentUserId,
+        userHasKeys,
         uploadDocument,
         getDocumentById,
         signDocument,
         shareDocument,
         verifyDocument,
         revokeDocument,
+        generateUserKeys,
+        setCurrentUserId,
       }}
     >
       {children}

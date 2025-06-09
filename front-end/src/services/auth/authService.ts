@@ -11,7 +11,7 @@ import {
 } from './types';
 
 // Update this to match your backend service URL
-const API_BASE_URL = '/auth';  // Use relative URL for API gateway routing
+const API_BASE_URL = 'http://localhost/auth';  // Use API gateway on port 80
 
 // Create axios instance with default config
 const api = axios.create({
@@ -20,7 +20,9 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   // Add timeout to prevent hanging requests
-  timeout: 5000,
+  timeout: 10000,
+  // Add withCredentials for CORS
+  withCredentials: false,
 });
 
 // Add request interceptor to add auth token

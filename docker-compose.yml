@@ -60,6 +60,51 @@ services:
     networks:
       - frontend-net
 
+  blockchain:
+    build: ./blockChaine-microservice
+    container_name: blockchain
+    ports:
+      - "5000:5000"
+    networks:
+      - backend-net
+    volumes:
+      - ./blockChaine-microservice:/app
+    restart: on-failure
+
+  document-service:
+    build: ./document-service
+    container_name: document-service
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5001:5001"
+    networks:
+      - backend-net
+    volumes:
+      - ./document-service/uploads:/app/uploads
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=auth_db
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - BLOCKCHAIN_SERVICE_URL=http://blockchain:5000
+    restart: on-failure
+
+  crypto-service:
+    build: ./digital-signature-app-main
+    container_name: crypto-service
+    ports:
+      - "8000:8000"
+    networks:
+      - backend-net
+    volumes:
+      - ./digital-signature-app-main/keys:/app/keys
+      - ./digital-signature-app-main/input:/app/input
+      - ./digital-signature-app-main/output:/app/output
+    restart: on-failure
+
 networks:
   backend-net:
     name: backend-net

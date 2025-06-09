@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signature System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container { max-width: 800px; margin-top: 2rem; }
+        .card { margin-bottom: 1rem; }
+        #signatureCanvas {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        .response-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Digital Signature System</h1>
+
+        <!-- Key Generation -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">1. Generate User Keys</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="userId" class="form-label">User ID</label>
+                    <input type="text" class="form-control" id="userId" placeholder="Enter user ID">
+                </div>
+                <button class="btn btn-primary" onclick="generateKeys()">Generate Keys</button>
+                <div id="keyGenerationResponse" class="response-box mt-3" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Document Signing -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">2. Sign Document</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="signUserId" class="form-label">User ID</label>
+                    <input type="text" class="form-control" id="signUserId" placeholder="Enter user ID">
+                </div>
+                <div class="mb-3">
+                    <label for="signDocument" class="form-label">Document</label>
+                    <input type="file" class="form-control" id="signDocument">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Signature</label>
+                    <canvas id="signatureCanvas" width="400" height="200"></canvas>
+                    <button class="btn btn-secondary" onclick="clearSignature()">Clear Signature</button>
+                </div>
+                <button class="btn btn-primary" onclick="signDocument()">Sign Document</button>
+                <div id="signResponse" class="response-box mt-3" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Signature Verification -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">3. Verify Signature</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="verifyDocument" class="form-label">Original Document</label>
+                    <input type="file" class="form-control" id="verifyDocument">
+                </div>
+                <div class="mb-3">
+                    <label for="signedPackage" class="form-label">Signed Package</label>
+                    <input type="file" class="form-control" id="signedPackage">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Original Signature</label>
+                    <canvas id="verifySignatureCanvas" width="400" height="200"></canvas>
+                    <button class="btn btn-secondary" onclick="clearVerifySignature()">Clear Signature</button>
+                </div>
+                <button class="btn btn-primary" onclick="verifySignature()">Verify Signature</button>
+                <div id="verificationResponse" class="response-box mt-3" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Signature Canvas Setup
+        const signatureCanvas = document.getElementById('signatureCanvas');
+        const verifySignatureCanvas = document.getElementById('verifySignatureCanvas');
+        const signatureCtx = signatureCanvas.getContext('2d');
+        const verifySignatureCtx = verifySignatureCanvas.getContext('2d');
+        let isDrawing = false;
+
+        // Setup signature canvas
+        function setupCanvas(canvas, ctx) {
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            
+            canvas.addEventListener('touchstart', handleTouch);
+            canvas.addEventListener('touchmove', handleTouch);
+            canvas.addEventListener('touchend', stopDrawing);
+        }
+
+        setupCanvas(signatureCanvas, signatureCtx);
+        setupCanvas(verifySignatureCanvas, verifySignatureCtx);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            e.target.getContext('2d').lineTo(x, y);
+            e.target.getContext('2d').stroke();
+            e.target.getContext('2d').beginPath();
+            e.target.getContext('2d').moveTo(x, y);
+        }
+
+        function stopDrawing(e) {
+            isDrawing = false;
+            e.target.getContext('2d').beginPath();
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            e.target.dispatchEvent(mouseEvent);
+        }
+
+        function clearSignature() {
+            signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+        }
+
+        function clearVerifySignature() {
+            verifySignatureCtx.clearRect(0, 0, verifySignatureCanvas.width, verifySignatureCanvas.height);
+        }
+
+        // API Calls
+        async function generateKeys() {
+            const userId = document.getElementById('userId').value;
+            if (!userId) {
+                alert('Please enter a user ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/users/${userId}/keys`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                const responseBox = document.getElementById('keyGenerationResponse');
+                responseBox.textContent = JSON.stringify(data, null, 2);
+                responseBox.style.display = 'block';
+            } catch (error) {
+                alert('Error generating keys: ' + error.message);
+            }
+        }
+
+        async function signDocument() {
+            const userId = document.getElementById('signUserId').value;
+            const docFile = document.getElementById('signDocument').files[0];
+            const signature = signatureCanvas.toDataURL('image/png').split(',')[1];
+            const responseBox = document.getElementById('signResponse');
+
+            if (!userId || !docFile || !signature) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            // Show loading state
+            responseBox.textContent = 'Signing document...';
+            responseBox.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('document', docFile);
+            formData.append('signature_base64', signature);
+
+            try {
+                const response = await fetch('/sign', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Signing failed');
+                }
+                
+                const result = await response.json();
+                console.log('Signing result:', result); // Debug log
+                
+                // Create download link for signed package
+                const signedPackage = JSON.stringify(result, null, 2);
+                const blob = new Blob([signedPackage], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `signed_document_${userId}.json`;
+                
+                // Update response box with success message and download link
+                responseBox.innerHTML = `
+                    <div style="color: #155724; background-color: #d4edda; padding: 10px; border-radius: 5px;">
+                        <p>Document signed successfully!</p>
+                        <p>User ID: ${result.user_id}</p>
+                        <p>Timestamp: ${result.timestamp}</p>
+                        <p>Document Hash: ${result.document_hash}</p>
+                        <p class="mt-2">
+                            <a href="${url}" download="${a.download}" class="btn btn-primary">
+                                Download Signed Package
+                            </a>
+                        </p>
+                        <p class="mt-2"><small>Debug Info:</small></p>
+                        <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 12px;">${signedPackage}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Signing error:', error); // Debug log
+                responseBox.innerHTML = `
+                    <div style="color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 5px;">
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function verifySignature() {
+            const originalDoc = document.getElementById('verifyDocument').files[0];
+            const signedPackage = document.getElementById('signedPackage').files[0];
+            const originalSignature = verifySignatureCanvas.toDataURL('image/png').split(',')[1];
+            const responseBox = document.getElementById('verificationResponse');
+
+            if (!originalDoc || !signedPackage || !originalSignature) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            // Show loading state
+            responseBox.textContent = 'Verifying signature...';
+            responseBox.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('document', originalDoc);
+            formData.append('signed_package', signedPackage);
+            formData.append('signature_base64', originalSignature);
+
+            try {
+                const response = await fetch('/verify', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                console.log('Verification result:', result); // Debug log
+                
+                // Update response box with verification result
+                responseBox.innerHTML = `
+                    <div style="color: ${result.valid ? '#155724' : '#721c24'}; 
+                                background-color: ${result.valid ? '#d4edda' : '#f8d7da'}; 
+                                padding: 10px; 
+                                border-radius: 5px;">
+                        <p>Verification Result: ${result.valid ? 'Valid' : 'Invalid'}</p>
+                        <p>Details: ${result.message || 'No additional details available'}</p>
+                        <p>User ID: ${result.details?.user_id || 'Unknown'}</p>
+                        <p>Timestamp: ${result.details?.timestamp || 'Unknown'}</p>
+                        <p>Error: ${result.details?.error || 'None'}</p>
+                        <p class="mt-2"><small>Debug Info:</small></p>
+                        <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 12px;">${JSON.stringify(result, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Verification error:', error); // Debug log
+                responseBox.innerHTML = `
+                    <div style="color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 5px;">
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html> 
